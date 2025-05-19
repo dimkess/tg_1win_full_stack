@@ -79,16 +79,18 @@ async def postback(event: str, user_id: str, sub1: str, amount: str = "0"):
     else:
         text = f"📩 Событие {event} для ID {user_id}"
 
+    # 🔧 отправка уведомления запускается как отдельная задача
     asyncio.create_task(send_notification(telegram_id, text))
+
     return {"status": "ok"}
 
 async def send_notification(chat_id, text):
     try:
-        print(f"📤 Пытаюсь отправить сообщение Telegram ID {telegram_id}: {text}")
-        await bot.send_message(telegram_id, text)
-        print(f"✅ Уведомление отправлено Telegram ID {telegram_id}")
+        print(f"📤 Пытаюсь отправить сообщение Telegram ID {chat_id}: {text}")
+        await bot.send_message(chat_id, text)
+        print(f"✅ Уведомление отправлено Telegram ID {chat_id}")
     except Exception as e:
-        print(f"❌ Ошибка при отправке уведомления Telegram ID {telegram_id}: {e}")
+        print(f"❌ Ошибка при отправке уведомления Telegram ID {chat_id}: {e}")
 
 def start_bot():
     asyncio.run(dp.start_polling())
