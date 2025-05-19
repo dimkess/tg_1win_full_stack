@@ -79,14 +79,7 @@ async def postback(event: str, user_id: str, sub1: str, amount: str = "0"):
     else:
         text = f"📩 Событие {event} для ID {user_id}"
 
-    try:
-        loop = asyncio.get_event_loop()
-        loop.create_task(send_notification(telegram_id, text))
-    except RuntimeError:
-        asyncio.run(send_notification(telegram_id, text))
-    except Exception as e:
-        print(f"Ошибка при отправке уведомления: {e}")
-
+    asyncio.create_task(send_notification(telegram_id, text))
     return {"status": "ok"}
 
 async def send_notification(chat_id, text):
