@@ -91,9 +91,10 @@ async def postback(event: str, user_id: str, sub1: str, amount: str = "0"):
 
 async def send_notification(chat_id, text):
     try:
+        print(f"📤 Пытаюсь отправить сообщение Telegram ID {chat_id}: {text}")
         await bot.send_message(chat_id, text)
     except Exception as e:
-        print(f"Ошибка при отправке уведомления: {e}")
+        print(f"❌ Ошибка при отправке уведомления Telegram ID {chat_id}: {e}")
 
 def start_bot():
     asyncio.run(dp.start_polling())
