@@ -6,6 +6,7 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.types import Message
 from dotenv import load_dotenv
 import os
+import uvicorn
 
 load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
@@ -79,26 +80,45 @@ async def postback(event: str, user_id: str, sub1: str, amount: str = "0"):
     else:
         text = f"📩 Событие {event} для ID {user_id}"
 
-    # 🔧 отправка уведомления запускается как отдельная задача
-    asyncio.create_task(send_notification(telegram_id, text))
+    # Отправка сообщения через aiogram в правильном событийном цикле
+    await send_notification(telegram_id, text)
 
     return {"status": "ok"}
 
+from aiogram.utils.exceptions import BotBlocked, ChatNotFound, RetryAfter
 async def send_notification(chat_id, text):
     try:
         print(f"📤 Пытаюсь отправить сообщение Telegram ID {chat_id}: {text}")
         await bot.send_message(chat_id, text)
         print(f"✅ Уведомление отправлено Telegram ID {chat_id}")
+    except BotBlocked:
+        print(f"❌ Бот заблокирован пользователем Telegram ID {chat_id}")
+    except ChatNotFound:
+        print(f"❌ Чат не найден для Telegram ID {chat_id}")
+    except RetryAfter as e:
+        print(f"❌ Превышен лимит, повтор через {e.timeout} секунд")
+        await asyncio.sleep(e.timeout)
+        await bot.send_message(chat_id, text)
     except Exception as e:
         print(f"❌ Ошибка при отправке уведомления Telegram ID {chat_id}: {e}")
 
-def start_bot():
-    asyncio.run(dp.start_polling())
+async def start_bot_polling():
+    try:
+        await dp.start_polling()
+    finally:
+        await bot.session.close()
 
 def start():
-    threading.Thread(target=start_bot).start()
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    # Запускаем FastAPI и aiogram в одном событийном цикле
+    loop = asyncio.get_event_loop()
+    
+    # Запускаем aiogram polling в отдельной корутине
+    loop.create_task(start_bot_polling())
+    
+    # Запускаем FastAPI через uvicorn
+    config = uvicorn.Config(app, host="0.0.0.0", port=8000, loop="asyncio")
+    server = uvicorn.Server(config)
+    loop.run_until_complete(server.serve())
 
 if __name__ == "__main__":
     start()
