@@ -45,7 +45,7 @@ async def handle_user_id(message: types.Message):
     if existing:
         await message.answer(f"📝 Ты уже отправлял этот ID: {user_id}")
     else:
-        cursor.execute("INSERT INTO users (telegram_id, user_id, status) VALUES (?, ?, ?)", (telegram_id, user_id, "id_sent"))
+        cursor.execute("INSERT OR IGNORE INTO users (telegram_id, user_id, status) VALUES (?, ?, ?)", (telegram_id, user_id, "id_sent"))
         conn.commit()
         await message.answer(f"🕐 ID {user_id} на проверке. Напишу, как только будет подтверждение регистрации.")
 
