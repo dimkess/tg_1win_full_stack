@@ -57,12 +57,17 @@ async def send_notification(telegram_id: int, message_text: str):
 
 @app.get("/postback")
 async def postback(event: str, user_id: str, sub1: str, amount: str = "0"):
+    if not sub1.isdigit():
+        print(f"❌ sub1 не является числом: {sub1}")
+        return {"status": "invalid telegram_id"}
+
     telegram_id = int(sub1)
+
     cursor.execute("SELECT * FROM users WHERE telegram_id = ? AND user_id = ?", (telegram_id, user_id))
     user = cursor.fetchone()
 
     if not user:
-        cursor.execute("INSERT INTO users (telegram_id, user_id, status) VALUES (?, ?, ?)", (telegram_id, user_id, event))
+        cursor.execute("INSERT OR IGNORE INTO users (telegram_id, user_id, status) VALUES (?, ?, ?)", (telegram_id, user_id, event))
     else:
         cursor.execute("UPDATE users SET status = ? WHERE telegram_id = ? AND user_id = ?", (event, telegram_id, user_id))
     conn.commit()
@@ -74,7 +79,11 @@ async def postback(event: str, user_id: str, sub1: str, amount: str = "0"):
     else:
         text = f"📩 Событие {event} для ID {user_id}"
 
-    asyncio.create_task(send_notification(telegram_id, text))
+    try:
+        asyncio.create_task(send_notification(telegram_id, text))
+    except Exception as e:
+        print(f"Ошибка при отправке уведомления: {e}")
+
     return {"status": "ok"}
 
 def start_bot():
