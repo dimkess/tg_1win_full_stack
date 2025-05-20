@@ -34,33 +34,34 @@ DEBUG_TELEGRAM_ID = 1266217883
 @dp.message_handler(commands=['start'])
 async def send_link(message: Message):
     telegram_id = message.from_user.id
-    # Формируем ссылку с Telegram ID лида в sub1
     link = f"https://1win.com/?sub1={telegram_id}"
-    await message.answer(f"📲 Перейди по ссылке для регистрации: {link}")
+    # Сбрасываем состояние в базе
+    cursor.execute("DELETE FROM users WHERE telegram_id = ?", (telegram_id,))
     cursor.execute(
-        "INSERT OR IGNORE INTO users (telegram_id, user_id, status) VALUES (?, ?, ?)",
+        "INSERT INTO users (telegram_id, user_id, status) VALUES (?, ?, ?)",
         (telegram_id, "", "waiting_for_user_id")
     )
     conn.commit()
+    await message.answer(f"📲 Перейди по ссылке для регистрации: {link}\nПосле регистрации отправь мне свой ID 1win.")
 
 @dp.message_handler()
 async def handle_user_id(message: Message):
     telegram_id = message.from_user.id
     user_id = message.text.strip()
 
-    if not user_id.isdigit():
-        await message.answer("❗ Отправь только ID 1win (цифры).")
-        return
-
-    cursor.execute("SELECT * FROM users WHERE telegram_id = ?", (telegram_id,))
+    cursor.execute("SELECT status FROM users WHERE telegram_id = ?", (telegram_id,))
     user = cursor.fetchone()
 
     if not user:
-        await message.answer("❗ Сначала начни с /start и зарегистрируйся по ссылке.")
+        await message.answer("❗ Сначала отправь /start, чтобы получить ссылку для регистрации.")
         return
 
-    if user[2] != "waiting_for_user_id":
-        await message.answer("⏳ ID уже на проверке.")
+    if user[0] != "waiting_for_user_id":
+        await message.answer("⏳ Ты уже отправил ID. Жду подтверждения регистрации или депозита.")
+        return
+
+    if not user_id.isdigit():
+        await message.answer("❗ Отправь только ID 1win (цифры).")
         return
 
     cursor.execute(
