@@ -1,9 +1,9 @@
 import asyncio
 import sqlite3
-import threading
 from fastapi import FastAPI
 from aiogram import Bot, Dispatcher, types
 from aiogram.types import Message
+from aiogram.utils.exceptions import BotBlocked, ChatNotFound, RetryAfter
 from dotenv import load_dotenv
 import os
 import uvicorn
@@ -28,32 +28,53 @@ cursor.execute("""
 """)
 conn.commit()
 
+# Ваш Telegram ID для отладки
+DEBUG_TELEGRAM_ID = 1266217883
+
+@dp.message_handler(commands=['start'])
+async def send_link(message: Message):
+    telegram_id = message.from_user.id
+    # Формируем ссылку с Telegram ID лида в sub1
+    link = f"https://1win.com/?sub1={telegram_id}"
+    await message.answer(f"📲 Перейди по ссылке для регистрации: {link}")
+    cursor.execute(
+        "INSERT OR IGNORE INTO users (telegram_id, user_id, status) VALUES (?, ?, ?)",
+        (telegram_id, "", "waiting_for_user_id")
+    )
+    conn.commit()
+
 @dp.message_handler()
 async def handle_user_id(message: Message):
-    if message.text.isdigit():
-        telegram_id = message.from_user.id
-        user_id = message.text.strip()
+    telegram_id = message.from_user.id
+    user_id = message.text.strip()
 
-        cursor.execute("SELECT * FROM users WHERE telegram_id = ?", (telegram_id,))
-        user = cursor.fetchone()
+    if not user_id.isdigit():
+        await message.answer("❗ Отправь только ID 1win (цифры).")
+        return
 
-        if user:
-            await message.answer("⏳ ID уже на проверке.")
-            return
+    cursor.execute("SELECT * FROM users WHERE telegram_id = ?", (telegram_id,))
+    user = cursor.fetchone()
 
-        cursor.execute(
-            "INSERT INTO users (telegram_id, user_id, status) VALUES (?, ?, ?)",
-            (telegram_id, user_id, "id_sent")
-        )
-        conn.commit()
-        await message.answer(f"🕐 ID {user_id} на проверке. Напишу, как только будет подтверждение регистрации.")
-    else:
-        await message.answer("❗ Отправь только ID, без лишнего текста.")
+    if not user:
+        await message.answer("❗ Сначала начни с /start и зарегистрируйся по ссылке.")
+        return
+
+    if user[2] != "waiting_for_user_id":
+        await message.answer("⏳ ID уже на проверке.")
+        return
+
+    cursor.execute(
+        "UPDATE users SET user_id = ?, status = ? WHERE telegram_id = ?",
+        (user_id, "id_sent", telegram_id)
+    )
+    conn.commit()
+    await message.answer(f"🕐 ID {user_id} принят. Жду подтверждения регистрации.")
 
 @app.get("/postback")
 async def postback(event: str, user_id: str, sub1: str, amount: str = "0"):
     if not sub1.isdigit():
-        print(f"❌ sub1 не является числом: {sub1}")
+        print(f"❌ sub1 не число: {sub1}")
+        await send_notification(DEBUG_TELEGRAM_ID, f"❌ sub1 не число: {sub1}")
         return {"status": "invalid telegram_id"}
 
     telegram_id = int(sub1)
@@ -62,45 +83,44 @@ async def postback(event: str, user_id: str, sub1: str, amount: str = "0"):
     user = cursor.fetchone()
 
     if not user:
-        cursor.execute(
-            "INSERT OR IGNORE INTO users (telegram_id, user_id, status) VALUES (?, ?, ?)",
-            (telegram_id, user_id, event)
-        )
-    else:
-        cursor.execute(
-            "UPDATE users SET status = ? WHERE telegram_id = ? AND user_id = ?",
-            (event, telegram_id, user_id)
-        )
+        print(f"❌ Пользователь telegram_id={telegram_id}, user_id={user_id} не найден")
+        await send_notification(DEBUG_TELEGRAM_ID, f"❌ Пользователь telegram_id={telegram_id}, user_id={user_id} не найден")
+        return {"status": "user_not_found"}
+
+    cursor.execute(
+        "UPDATE users SET status = ? WHERE telegram_id = ? AND user_id = ?",
+        (event, telegram_id, user_id)
+    )
     conn.commit()
 
     if event == "registration":
         text = f"✅ Регистрация подтверждена для ID {user_id}"
     elif event == "deposit":
-        text = f"💰 Депозит подтверждён на сумму {amount}₽ для ID {user_id}"
+        text = f"💰 Депозит на {amount}₽ подтверждён для ID {user_id}"
     else:
         text = f"📩 Событие {event} для ID {user_id}"
 
-    # Отправка сообщения через aiogram в правильном событийном цикле
     await send_notification(telegram_id, text)
-
     return {"status": "ok"}
 
-from aiogram.utils.exceptions import BotBlocked, ChatNotFound, RetryAfter
 async def send_notification(chat_id, text):
     try:
-        print(f"📤 Пытаюсь отправить сообщение Telegram ID {chat_id}: {text}")
+        print(f"📤 Отправляю Telegram ID {chat_id}: {text}")
         await bot.send_message(chat_id, text)
-        print(f"✅ Уведомление отправлено Telegram ID {chat_id}")
+        print(f"✅ Отправлено Telegram ID {chat_id}")
     except BotBlocked:
-        print(f"❌ Бот заблокирован пользователем Telegram ID {chat_id}")
+        print(f"❌ Бот заблокирован Telegram ID {chat_id}")
+        await send_notification(DEBUG_TELEGRAM_ID, f"❌ Бот заблокирован Telegram ID {chat_id}")
     except ChatNotFound:
-        print(f"❌ Чат не найден для Telegram ID {chat_id}")
+        print(f"❌ Чат не найден Telegram ID {chat_id}")
+        await send_notification(DEBUG_TELEGRAM_ID, f"❌ Чат не найден Telegram ID {chat_id}")
     except RetryAfter as e:
-        print(f"❌ Превышен лимит, повтор через {e.timeout} секунд")
+        print(f"❌ Лимит, жду {e.timeout} сек")
         await asyncio.sleep(e.timeout)
         await bot.send_message(chat_id, text)
     except Exception as e:
-        print(f"❌ Ошибка при отправке уведомления Telegram ID {chat_id}: {e}")
+        print(f"❌ Ошибка Telegram ID {chat_id}: {e}")
+        await send_notification(DEBUG_TELEGRAM_ID, f"❌ Ошибка: {e}")
 
 async def start_bot_polling():
     try:
@@ -109,13 +129,8 @@ async def start_bot_polling():
         await bot.session.close()
 
 def start():
-    # Запускаем FastAPI и aiogram в одном событийном цикле
     loop = asyncio.get_event_loop()
-    
-    # Запускаем aiogram polling в отдельной корутине
     loop.create_task(start_bot_polling())
-    
-    # Запускаем FastAPI через uvicorn
     config = uvicorn.Config(app, host="0.0.0.0", port=8000, loop="asyncio")
     server = uvicorn.Server(config)
     loop.run_until_complete(server.serve())
