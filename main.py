@@ -55,18 +55,30 @@ async def handle_user_id(message: Message):
         await message.answer("❗ Отправь /start, чтобы начать.")
         return
 
-    if user[0] != "waiting_for_user_id":
-        await message.answer("⏳ ID уже отправлен. Жду регистрации или депозита.")
-        return
-
     if not user_id.isdigit():
         await message.answer("❗ Отправь только ID 1win (цифры).")
         return
 
+    cursor.execute("SELECT status FROM users WHERE telegram_id = ? AND user_id = ?", (telegram_id, user_id))
+    existing_user = cursor.fetchone()
+
+    if existing_user:
+        if existing_user[0] in ["registration", "deposit"]:
+            await message.answer(f"✅ ID {user_id} уже зарегистрирован. Статус: {existing_user[0]}.")
+            return
+        else:
+            await message.answer("⏳ ID уже отправлен. Жду регистрации или депозита.")
+            return
+
     cursor.execute(
-        "UPDATE users SET user_id = ?, status = ? WHERE telegram_id = ?",
+        "UPDATE users SET user_id = ?, status = ? WHERE telegram_id = ? AND user_id = ''",
         (user_id, "id_sent", telegram_id)
     )
+    if cursor.rowcount == 0:
+        cursor.execute(
+            "INSERT INTO users (telegram_id, user_id, status) VALUES (?, ?, ?)",
+            (telegram_id, user_id, "id_sent")
+        )
     conn.commit()
     await message.answer(f"🕐 ID {user_id} принят. Жду регистрации.")
 
@@ -83,15 +95,20 @@ async def postback(event: str, user_id: str, sub1: str, amount: str = "0"):
     user = cursor.fetchone()
 
     if not user:
-        print(f"❌ Пользователь telegram_id={telegram_id}, user_id={user_id} не найден")
-        await send_notification(DEBUG_TELEGRAM_ID, f"❌ Пользователь telegram_id={telegram_id}, user_id={user_id} не найден")
-        return {"status": "user_not_found"}
-
-    cursor.execute(
-        "UPDATE users SET status = ? WHERE telegram_id = ? AND user_id = ?",
-        (event, telegram_id, user_id)
-    )
-    conn.commit()
+        # Сохраняем пользователя из постбэка
+        cursor.execute(
+            "INSERT OR IGNORE INTO users (telegram_id, user_id, status) VALUES (?, ?, ?)",
+            (telegram_id, user_id, event)
+        )
+        conn.commit()
+        print(f"ℹ️ Новый пользователь telegram_id={telegram_id}, user_id={user_id} добавлен из постбэка")
+        await send_notification(DEBUG_TELEGRAM_ID, f"ℹ️ Новый пользователь telegram_id={telegram_id}, user_id={user_id} добавлен из постбэка")
+    else:
+        cursor.execute(
+            "UPDATE users SET status = ? WHERE telegram_id = ? AND user_id = ?",
+            (event, telegram_id, user_id)
+        )
+        conn.commit()
 
     if event == "registration":
         text = f"✅ Регистрация подтверждена для ID {user_id}"
