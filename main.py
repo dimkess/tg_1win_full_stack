@@ -34,15 +34,14 @@ DEBUG_TELEGRAM_ID = 1266217883
 @dp.message_handler(commands=['start'])
 async def send_link(message: Message):
     telegram_id = message.from_user.id
-    link = f"https://1win.com/?sub1={telegram_id}"
-    # Сбрасываем состояние в базе
+    link = f"https://1wtsmf.com/v3/aviator-fire?p=1ylh&sub1={telegram_id}"
     cursor.execute("DELETE FROM users WHERE telegram_id = ?", (telegram_id,))
     cursor.execute(
         "INSERT INTO users (telegram_id, user_id, status) VALUES (?, ?, ?)",
         (telegram_id, "", "waiting_for_user_id")
     )
     conn.commit()
-    await message.answer(f"📲 Перейди по ссылке для регистрации: {link}\nПосле регистрации отправь мне свой ID 1win.")
+    await message.answer(f"📲 Перейди по ссылке для регистрации: {link}\nЗатем отправь свой ID 1win.")
 
 @dp.message_handler()
 async def handle_user_id(message: Message):
@@ -53,11 +52,11 @@ async def handle_user_id(message: Message):
     user = cursor.fetchone()
 
     if not user:
-        await message.answer("❗ Сначала отправь /start, чтобы получить ссылку для регистрации.")
+        await message.answer("❗ Отправь /start, чтобы начать.")
         return
 
     if user[0] != "waiting_for_user_id":
-        await message.answer("⏳ Ты уже отправил ID. Жду подтверждения регистрации или депозита.")
+        await message.answer("⏳ ID уже отправлен. Жду регистрации или депозита.")
         return
 
     if not user_id.isdigit():
@@ -69,7 +68,7 @@ async def handle_user_id(message: Message):
         (user_id, "id_sent", telegram_id)
     )
     conn.commit()
-    await message.answer(f"🕐 ID {user_id} принят. Жду подтверждения регистрации.")
+    await message.answer(f"🕐 ID {user_id} принят. Жду регистрации.")
 
 @app.get("/postback")
 async def postback(event: str, user_id: str, sub1: str, amount: str = "0"):
