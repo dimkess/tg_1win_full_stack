@@ -34,6 +34,13 @@ DEBUG_TELEGRAM_ID = 1266217883
 @dp.message_handler(commands=['start'])
 async def send_welcome(message: Message):
     telegram_id = message.from_user.id
+    # Проверяем, зарегистрирован ли пользователь
+    cursor.execute("SELECT status FROM users WHERE telegram_id = ? AND user_id != ''", (telegram_id,))
+    user = cursor.fetchone()
+    if user and user[0] in ["registration", "deposit"]:
+        await message.answer("✅ Вы уже зарегистрированы. Ожидайте депозит или свяжитесь с поддержкой.")
+        return
+    
     # Создаём кнопку
     keyboard = InlineKeyboardMarkup()
     button = InlineKeyboardButton(text="Ҳа, мен ҳаётимни ўзгартиришга тайёрман!", callback_data="ready_to_change")
@@ -48,9 +55,8 @@ async def send_welcome(message: Message):
     )
     
     # Отправляем сообщение с картинкой и кнопкой
-    # Замени 'photo_url' на реальную ссылку на картинку
-    photo_url = "https://cdn.geekvibesnation.com/wp-media-folder-geek-vibes-nation/wp-content/uploads/2024/04/aviator-game-review-1024x475.png"  # Укажи свою картинку
-    cursor.execute("DELETE FROM users WHERE telegram_id = ?", (telegram_id,))
+    photo_url = "https://cdn.geekvibesnation.com/wp-media-folder-geek-vibes-nation/wp-content/uploads/2024/04/aviator-game-review-1024x475.png"  # Замени на реальную ссылку
+    cursor.execute("DELETE FROM users WHERE telegram_id = ? AND user_id = ''", (telegram_id,))
     cursor.execute(
         "INSERT INTO users (telegram_id, user_id, status) VALUES (?, ?, ?)",
         (telegram_id, "", "waiting_for_button")
@@ -89,7 +95,7 @@ async def handle_user_id(message: Message):
         return
 
     if user[0] not in ["waiting_for_user_id", "waiting_for_button"]:
-        await message.answer("⏳ ID уже отправлен. Жду регистрации или депозита.")
+        await message.answer("✅ Вы уже зарегистрированы. Ожидайте депозит или свяжитесь с поддержкой.")
         return
 
     if not user_id.isdigit():
@@ -137,8 +143,9 @@ async def postback(event: str, user_id: str, sub1: str, amount: str = "0"):
             (telegram_id, user_id, event)
         )
         conn.commit()
-        print(f"ℹ️ Новый пользователь telegram_id={telegram_id}, user_id={user_id} добавлен из постбэка")
-        await send_notification(DEBUG_TELEGRAM_ID, f"ℹ️ Новый пользователь telegram_id={telegram_id}, user_id={user_id} добавлен из постбэка")
+        if telegram_id != DEBUG_TELEGRAM_ID:
+            print(f"ℹ️ Новый пользователь telegram_id={telegram_id}, user_id={user_id} добавлен из постбэка")
+            await send_notification(DEBUG_TELEGRAM_ID, f"ℹ️ Новый пользователь telegram_id={telegram_id}, user_id={user_id} добавлен из постбэка")
     else:
         cursor.execute(
             "UPDATE users SET status = ? WHERE telegram_id = ? AND user_id = ?",
@@ -147,9 +154,9 @@ async def postback(event: str, user_id: str, sub1: str, amount: str = "0"):
         conn.commit()
 
     if event == "registration":
-        text = f"✅ Регистрация подтверждена для ID {user_id}"
+        text = f"✅ Регистрация подтверждена для ID {user_id}\n📥 Пожалуйста, сделайте депозит для активации сигналов!"
     elif event == "deposit":
-        text = f"💰 Депозит на {amount}₽ подтверждён для ID {user_id}"
+        text = f"💰 Депозит на {amount}₽ подтверждён для ID {user_id}\n🎉 Сигналы активированы! Играйте и выигрывайте!"
     else:
         text = f"📩 Событие {event} для ID {user_id}"
 
