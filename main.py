@@ -246,6 +246,82 @@ async def start_bot_polling():
     finally:
         await bot.session.close()
 
+
+# Главное меню
+def get_main_menu():
+    keyboard = InlineKeyboardMarkup()
+    keyboard.add(InlineKeyboardButton("📝 Регистрация", callback_data="register"))
+    keyboard.add(InlineKeyboardButton("📖 Инструкция", callback_data="instruction"))
+    keyboard.add(InlineKeyboardButton("💬 Help", url="https://t.me/YOUR_ADMIN_USERNAME"))  # Замени на своего админа
+    return keyboard
+
+def back_to_menu_button():
+    return InlineKeyboardMarkup().add(
+        InlineKeyboardButton("↩️ Вернуться к главному меню", callback_data="menu")
+    )
+
+@dp.callback_query_handler(lambda c: c.data == "menu")
+async def handle_main_menu(callback_query: types.CallbackQuery):
+    telegram_id = callback_query.from_user.id
+    cursor.execute("SELECT user_id, status FROM users WHERE telegram_id = ?", (telegram_id,))
+    user = cursor.fetchone()
+
+    photo = "https://i.ibb.co/fd2zyZ0D/1a3411a4-db55-46b3-84a8-f4da1b57aeff.png"
+    caption = "👋 <b>Хуш келибсан!</b>\n\nБу ерда сен 1WIN учун ишончли сигналлар оласан.\n"
+
+    if user and user[1] in ["registration", "deposit"]:
+        caption += "✅ Сен рўйхатдан ўтгансан. Энди депозит кирит ва сигналлар фаоллашади. 💰"
+    else:
+        caption += "📝 Илтимос, рўйхатдан ўтиш учун тугмани бос ва янги аккаунт ярат."
+
+    await callback_query.message.answer_photo(
+        photo=photo,
+        caption=caption,
+        reply_markup=get_main_menu(),
+        parse_mode="HTML"
+    )
+    await callback_query.answer()
+
+@dp.callback_query_handler(lambda c: c.data == "register")
+async def handle_register_button(callback_query: types.CallbackQuery):
+    telegram_id = callback_query.from_user.id
+    link = f"https://1wtsmf.com/v3/aviator-fire?p=1ylh&sub1={telegram_id}"
+
+    cursor.execute("SELECT status FROM users WHERE telegram_id = ?", (telegram_id,))
+    user = cursor.fetchone()
+
+    if user and user[0] in ["registration", "deposit"]:
+        text = (
+            "✅ Сен аллақачон рўйхатдан ўтгансан.\n\n"
+            "💰 Илтимос, депозит кирит ва сигналлар фаоллашади."
+        )
+    else:
+        text = (
+            f"📝 Илтимос, аввал мана бу ҳавола орқали рўйхатдан ўт:\n"
+            f"👉 <a href=\"{link}\">{link}</a>\n\n"
+            "🔑 Кейин эса ID рақамингни ботга юбор."
+        )
+
+    await callback_query.message.answer(text, parse_mode="HTML", reply_markup=back_to_menu_button())
+    await callback_query.answer()
+
+@dp.callback_query_handler(lambda c: c.data == "instruction")
+async def handle_instruction_button(callback_query: types.CallbackQuery):
+    text = (
+        "📖 <b>Йўриқнома:</b>\n\n"
+        "1️⃣ Рўйхатдан ўт мана бу ҳавола орқали\n"
+        "2️⃣ ID рақамни ботга юбор\n"
+        "3️⃣ Депозит кирит\n"
+        "4️⃣ Сигналлар фаол бўлади ✅"
+    )
+    await callback_query.message.answer(text, parse_mode="HTML", reply_markup=back_to_menu_button())
+    await callback_query.answer()
+
+@dp.message_handler(commands=["menu"])
+async def show_menu_command(message: Message):
+    fake_cb = types.CallbackQuery(id="0", from_user=message.from_user, message=message)
+    await handle_main_menu(fake_cb)
+
 def start():
     loop = asyncio.get_event_loop()
     loop.create_task(start_bot_polling())
