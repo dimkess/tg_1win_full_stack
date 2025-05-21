@@ -126,8 +126,11 @@ async def handle_user_id(message: Message):
         await message.answer("❗ Отправь /start, чтобы начать.")
         return
 
-    if user[0] not in ["waiting_for_user_id", "waiting_for_button"]:
-        await message.answer(f"✅ Вы уже зарегистрированы. Ваш ID в 1WIN — {user_id}. Внесите депозит, чтобы получить доступ к приложению.")
+    if user[0] in ["registration", "deposit"]:
+        # Получаем привязанный ID из базы
+        cursor.execute("SELECT user_id FROM users WHERE telegram_id = ?", (telegram_id,))
+        real_user_id = cursor.fetchone()[0]
+        await message.answer(f"✅ Вы уже зарегистрированы. Ваш ID в 1WIN — {real_user_id}. Внесите депозит, чтобы получить доступ к приложению.")
         return
 
     cursor.execute("SELECT status FROM users WHERE telegram_id = ? AND user_id = ?", (telegram_id, user_id))
