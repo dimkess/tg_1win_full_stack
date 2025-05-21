@@ -53,7 +53,7 @@ async def send_welcome(message: Message):
         "✨ **Ҳаётингизни ўзгартиришга тайёрмисиз?**"
     )
 
-    photo_url = "https://cdn.geekvibesnation.com/wp-media-folder-geek-vibes-nation/wp-content/uploads/2024/04/aviator-game-review-1024x475.png"
+    photo_url = "https://i.ibb.co/fd2zyZ0D/1a3411a4-db55-46b3-84a8-f4da1b57aeff.png"
     cursor.execute("DELETE FROM users WHERE telegram_id = ? AND user_id = ''", (telegram_id,))
     cursor.execute(
         "INSERT INTO users (telegram_id, user_id, status) VALUES (?, ?, ?)",
@@ -93,7 +93,7 @@ async def handle_button(callback_query: types.CallbackQuery):
     conn.commit()
 
     await callback_query.message.answer_photo(
-        photo="https://cdn.geekvibesnation.com/wp-media-folder-geek-vibes-nation/wp-content/uploads/2024/04/aviator-game-review-1024x475.png",
+        photo="https://i.ibb.co/xtnY7Dvn/255ef825-defe-483d-a576-e5c6066e940b.png",
         caption=caption.format(link=link),
         reply_markup=register_keyboard,
         parse_mode="HTML"
