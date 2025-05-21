@@ -55,10 +55,11 @@ async def send_welcome(message: Message):
 
     photo_url = "https://i.ibb.co/fd2zyZ0D/1a3411a4-db55-46b3-84a8-f4da1b57aeff.png"
     cursor.execute("DELETE FROM users WHERE telegram_id = ? AND user_id = ''", (telegram_id,))
+    
     cursor.execute(
-        "INSERT INTO users (telegram_id, user_id, status) VALUES (?, ?, ?)",
+        "INSERT OR IGNORE INTO users (telegram_id, user_id, status) VALUES (?, ?, ?)",
         (telegram_id, "", "waiting_for_button")
-    )
+   )
     conn.commit()
     await message.answer_photo(
         photo=photo_url,
