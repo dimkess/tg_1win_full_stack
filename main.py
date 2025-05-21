@@ -106,8 +106,26 @@ async def handle_user_id(message: Message):
     telegram_id = message.from_user.id
     user_input = message.text.strip().lower()
 
+    # Проверка: есть ли запись в базе
+    cursor.execute("SELECT user_id, status FROM users WHERE telegram_id = ?", (telegram_id,))
+    user = cursor.fetchone()
+
+    if not user:
+        await message.answer("❗ Отправь /start, чтобы начать.")
+        return
+
+    user_id_in_db, status = user
+
+    # ✅ Уже зарегистрирован
+    if status in ["registration", "deposit"]:
+        await message.answer(
+            f"✅ Вы уже зарегистрированы. Ваш ID в 1WIN — {user_id_in_db}. "
+            f"Внесите депозит, чтобы получить доступ к приложению."
+        )
+        return
+
+    # ❗ Сообщение не является ID (не цифры)
     if not user_input.isdigit():
-        # Ответ пользователю, если ID не цифры
         text = (
             "🙌 Дўстим, барча саволларингга мамнуният билан жавоб бераман!\n\n"
             "Лекин аввал илтимос, ⏳ мана бу ҳавола орқали рўйхатдан ўт:\n"
@@ -119,39 +137,29 @@ async def handle_user_id(message: Message):
 
     user_id = user_input
 
-    cursor.execute("SELECT status FROM users WHERE telegram_id = ?", (telegram_id,))
-    user = cursor.fetchone()
-
-    if not user:
-        await message.answer("❗ Отправь /start, чтобы начать.")
-        return
-
-    if user[0] in ["registration", "deposit"]:
-        # Получаем привязанный ID из базы
-        cursor.execute("SELECT user_id FROM users WHERE telegram_id = ?", (telegram_id,))
-        real_user_id = cursor.fetchone()[0]
-        await message.answer(f"✅ Вы уже зарегистрированы. Ваш ID в 1WIN — {real_user_id}. Внесите депозит, чтобы получить доступ к приложению.")
-        return
-
+    # Проверка: уже есть такой ID у этого пользователя
     cursor.execute("SELECT status FROM users WHERE telegram_id = ? AND user_id = ?", (telegram_id, user_id))
     existing_user = cursor.fetchone()
 
     if existing_user:
-        status = existing_user[0]
-        if status == "id_sent":
+        existing_status = existing_user[0]
+        if existing_status == "id_sent":
             await message.answer("⏳ ID уже отправлен. Жду подтверждение регистрации.")
             return
-        elif status in ["registration", "deposit"]:
-            await message.answer(f"✅ Вы уже зарегистрированы. Ваш ID в 1WIN — {user_id}. Внесите депозит, чтобы получить доступ к приложению.")
+        elif existing_status in ["registration", "deposit"]:
+            await message.answer(
+                f"✅ Вы уже зарегистрированы. Ваш ID в 1WIN — {user_id}. "
+                f"Внесите депозит, чтобы получить доступ к приложению."
+            )
             return
 
-    # Обновить если запись уже есть
+    # Обновить если была пустая запись
     cursor.execute(
         "UPDATE users SET user_id = ?, status = ? WHERE telegram_id = ? AND user_id = ''",
         (user_id, "id_sent", telegram_id)
     )
 
-    # Если не обновилось — вставить новую
+    # Если не обновилось — вставить новую, но без дублирования
     if cursor.rowcount == 0:
         cursor.execute("SELECT 1 FROM users WHERE telegram_id = ? AND user_id = ?", (telegram_id, user_id))
         if not cursor.fetchone():
@@ -167,7 +175,7 @@ async def handle_user_id(message: Message):
         "<b>Агар 1 соат ичида ҳеч қандай хабар келмаса, 2 та сабаб бўлиши мумкин:</b>\n"
         "1️⃣ <b>Сен ҳавола орқали рўйхатдан ўтмадинг.</b>\n"
         "2️⃣ <b>Сенда олдиндан мавжуд бўлган аккаунт бор — у бот билан ишламайди.</b>\n\n"
-        "📌 <i>Тўлиқ йўриқномани кўриш:</i> 👉 <a href=\"https://твоят-сайт.уз/instruction\">https://твоят-сайт.уз/instruction</a>"
+        "📌 <i>Тўлиқ йўриқномани кўриш:</i> 👉 <a href=\"https://твоят-сайт.уз/instruction\">йўриқнома</a>"
     )
 
     await message.answer(text, parse_mode="HTML")
