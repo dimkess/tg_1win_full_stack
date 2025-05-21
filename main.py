@@ -103,7 +103,20 @@ async def handle_button(callback_query: types.CallbackQuery):
 @dp.message_handler()
 async def handle_user_id(message: Message):
     telegram_id = message.from_user.id
-    user_id = message.text.strip()
+    user_input = message.text.strip().lower()
+
+    if not user_input.isdigit():
+        # Ответ пользователю, если ID не цифры
+        text = (
+            "🙌 Дўстим, барча саволларингга мамнуният билан жавоб бераман!\n\n"
+            "Лекин аввал илтимос, ⏳ мана бу ҳавола орқали рўйхатдан ўт:\n"
+            "👉 <b>Рўйхатдан ўтиш — бу биринчи ва муҳим қадам!</b> 📝\n\n"
+            "Шундан сўнг ID рақамингни ёзсан, ҳаммасини давом эттирамиз! 🚀"
+        )
+        await message.answer(text, parse_mode="HTML")
+        return
+
+    user_id = user_input
 
     cursor.execute("SELECT status FROM users WHERE telegram_id = ?", (telegram_id,))
     user = cursor.fetchone()
@@ -114,10 +127,6 @@ async def handle_user_id(message: Message):
 
     if user[0] not in ["waiting_for_user_id", "waiting_for_button"]:
         await message.answer("✅ Вы уже зарегистрированы. Ваш ID в 1WIN - {user_id}. Внесите депозит, чтобы получить доступ к приложению")
-        return
-
-    if not user_id.isdigit():
-        await message.answer("❗ Отправь только ID 1win (цифры).")
         return
 
     cursor.execute("SELECT status FROM users WHERE telegram_id = ? AND user_id = ?", (telegram_id, user_id))
