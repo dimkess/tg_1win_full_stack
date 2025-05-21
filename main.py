@@ -177,43 +177,39 @@ async def postback(event: str, user_id: str, sub1: str, amount: str = "0"):
 
     telegram_id = int(sub1)
 
-    # Проверка — есть ли запись по telegram_id
-cursor.execute("SELECT * FROM users WHERE telegram_id = ?", (telegram_id,))
-user = cursor.fetchone()
-
-if not user:
-    # Нет ничего — создаём новую строку
-    cursor.execute(
-        "INSERT OR IGNORE INTO users (telegram_id, user_id, status) VALUES (?, ?, ?)",
-        (telegram_id, user_id, event)
-    )
-else:
-    # Обновляем user_id и статус, даже если ранее был фейковый
-    cursor.execute(
-        "UPDATE users SET user_id = ?, status = ? WHERE telegram_id = ?",
-        (user_id, event, telegram_id)
-    )
-
+    # Проверка: есть ли хоть какая-то запись по telegram_id
+    cursor.execute("SELECT * FROM users WHERE telegram_id = ?", (telegram_id,))
+    user = cursor.fetchone()
 
     if not user:
+        # Нет ничего — создаём новую строку
         cursor.execute(
             "INSERT OR IGNORE INTO users (telegram_id, user_id, status) VALUES (?, ?, ?)",
             (telegram_id, user_id, event)
         )
         conn.commit()
         if telegram_id != DEBUG_TELEGRAM_ID:
-            await send_notification(DEBUG_TELEGRAM_ID, f"ℹ️ Новый пользователь telegram_id={telegram_id}, user_id={user_id} добавлен из постбэка")
+            text = f"ℹ️ Новый пользователь telegram_id={telegram_id}, user_id={user_id} добавлен из постбэка"
+            await send_notification(DEBUG_TELEGRAM_ID, text)
     else:
+        # Есть строка, но возможно старый user_id → обновим
         cursor.execute(
-            "UPDATE users SET status = ? WHERE telegram_id = ? AND user_id = ?",
-            (event, telegram_id, user_id)
+            "UPDATE users SET user_id = ?, status = ? WHERE telegram_id = ?",
+            (user_id, event, telegram_id)
         )
         conn.commit()
 
+    # Готовим уведомление пользователю
     if event == "registration":
-        text = f"✅ Регистрация подтверждена для ID {user_id}\n📥 Пожалуйста, сделайте депозит для активации сигналов!"
+        text = (
+            f"✅ Регистрация подтверждена для ID {user_id}\n"
+            f"📥 Пожалуйста, сделайте депозит для активации сигналов!"
+        )
     elif event == "deposit":
-        text = f"💰 Депозит на {amount}₽ подтверждён для ID {user_id}\n🎉 Сигналы активированы! Играйте и выигрывайте!"
+        text = (
+            f"💰 Депозит на {amount}₽ подтверждён для ID {user_id}\n"
+            f"🎉 Сигналы активированы! Играйте и выигрывайте!"
+        )
     else:
         text = f"📩 Событие {event} для ID {user_id}"
 
