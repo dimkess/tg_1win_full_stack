@@ -153,6 +153,7 @@ async def handle_user_id(message: Message):
             )
             return
 
+
     # Обновить если была пустая запись
     cursor.execute(
         "UPDATE users SET user_id = ?, status = ? WHERE telegram_id = ? AND user_id = ''",
@@ -163,12 +164,17 @@ async def handle_user_id(message: Message):
     if cursor.rowcount == 0:
         cursor.execute("SELECT 1 FROM users WHERE telegram_id = ? AND user_id = ?", (telegram_id, user_id))
         if not cursor.fetchone():
-            cursor.execute(
-                "INSERT INTO users (telegram_id, user_id, status) VALUES (?, ?, ?)",
-                (telegram_id, user_id, "id_sent")
-            )
+            try:
+                cursor.execute(
+                    "INSERT INTO users (telegram_id, user_id, status) VALUES (?, ?, ?)",
+                    (telegram_id, user_id, "id_sent")
+                )
+            except sqlite3.IntegrityError:
+                await message.answer("⚠️ Ошибка при сохранении ID. Повторите попытку позже.")
+                return
 
     conn.commit()
+
 
     text = (
         f"🕐 <b>ID {user_id} қабул қилинди.</b> Бироз вақт ичида рўйхатдан ўтиш ҳақида хабар оласан. 📩\n\n"
