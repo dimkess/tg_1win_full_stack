@@ -34,39 +34,39 @@ DEBUG_TELEGRAM_ID = 1266217883
 @dp.message_handler(commands=['start'])
 async def send_welcome(message: Message):
     telegram_id = message.from_user.id
-    # Проверяем, зарегистрирован ли пользователь
     cursor.execute("SELECT status FROM users WHERE telegram_id = ? AND user_id != ''", (telegram_id,))
     user = cursor.fetchone()
     if user and user[0] in ["registration", "deposit"]:
         await message.answer("✅ Вы уже зарегистрированы. Ожидайте депозит или свяжитесь с поддержкой.")
         return
-    
-    # Создаём кнопку
+
     keyboard = InlineKeyboardMarkup()
     button = InlineKeyboardButton(text="Ҳа, мен ҳаётимни ўзгартиришга тайёрман!", callback_data="ready_to_change")
     keyboard.add(button)
-    
-    # Текст приветствия
+
     welcome_text = (
         "👋 **Салом, азиз дўст!**\n\n"
         "Мен — тажрибали дастурчи, ва менда сен учун ҳақиқий лайфхак бор! 💡\n\n"
         "💻 Дастурчилар яхши пул топишади, лекин *ҳаммадан кўпроқ* даромад қилмоқчимисиз?\n\n"
         "🤖 Мен ChatGPT асосида ишлайдиган бот ва илова яратдим. У **Aviator** ўйинидаги "
         "сигналларни *95% аниқликда* тахмин қилади! 🎯\n\n"
-        "🔁 Бу имконият ҳаётингизни ўзгартириши мумкин!\n\n"
-        "✨ Ҳаётингизни ўзгартиришга тайёрмисиз?"
+        "🔁 Бу имконият ҳаётингизни ўзгартиришга ёрдам беради!\n\n"
+        "✨ **Ҳаётингизни ўзгартиришга тайёрмисиз?**"
     )
 
-    
-    # Отправляем сообщение с картинкой и кнопкой
-    photo_url = "https://cdn.geekvibesnation.com/wp-media-folder-geek-vibes-nation/wp-content/uploads/2024/04/aviator-game-review-1024x475.png"  # Замени на реальную ссылку
+    photo_url = "https://cdn.geekvibesnation.com/wp-media-folder-geek-vibes-nation/wp-content/uploads/2024/04/aviator-game-review-1024x475.png"
     cursor.execute("DELETE FROM users WHERE telegram_id = ? AND user_id = ''", (telegram_id,))
     cursor.execute(
         "INSERT INTO users (telegram_id, user_id, status) VALUES (?, ?, ?)",
         (telegram_id, "", "waiting_for_button")
     )
     conn.commit()
-    await message.answer_photo(photo=photo_url, caption=welcome_text, reply_markup=keyboard)
+    await message.answer_photo(
+        photo=photo_url,
+        caption=welcome_text,
+        reply_markup=keyboard,
+        parse_mode="Markdown"
+    )
 
 @dp.callback_query_handler(lambda c: c.data == "ready_to_change")
 async def handle_button(callback_query: types.CallbackQuery):
