@@ -338,5 +338,8 @@ async def show_menu_command(message: Message):
         parse_mode="HTML"
     )
 
+def start():
+    executor.start_polling(dp, skip_updates=True)
+
 if __name__ == "__main__":
     start()
