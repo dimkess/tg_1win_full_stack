@@ -177,8 +177,23 @@ async def postback(event: str, user_id: str, sub1: str, amount: str = "0"):
 
     telegram_id = int(sub1)
 
-    cursor.execute("SELECT * FROM users WHERE telegram_id = ? AND user_id = ?", (telegram_id, user_id))
-    user = cursor.fetchone()
+    # Проверка — есть ли запись по telegram_id
+cursor.execute("SELECT * FROM users WHERE telegram_id = ?", (telegram_id,))
+user = cursor.fetchone()
+
+if not user:
+    # Нет ничего — создаём новую строку
+    cursor.execute(
+        "INSERT OR IGNORE INTO users (telegram_id, user_id, status) VALUES (?, ?, ?)",
+        (telegram_id, user_id, event)
+    )
+else:
+    # Обновляем user_id и статус, даже если ранее был фейковый
+    cursor.execute(
+        "UPDATE users SET user_id = ?, status = ? WHERE telegram_id = ?",
+        (user_id, event, telegram_id)
+    )
+
 
     if not user:
         cursor.execute(
