@@ -319,15 +319,24 @@ async def handle_instruction_button(callback_query: types.CallbackQuery):
 
 @dp.message_handler(commands=["menu"])
 async def show_menu_command(message: Message):
-    fake_cb = types.CallbackQuery(id="0", from_user=message.from_user, message=message)
-    await handle_main_menu(fake_cb)
+    telegram_id = message.from_user.id
+    cursor.execute("SELECT user_id, status FROM users WHERE telegram_id = ?", (telegram_id,))
+    user = cursor.fetchone()
 
-def start():
-    loop = asyncio.get_event_loop()
-    loop.create_task(start_bot_polling())
-    config = uvicorn.Config(app, host="0.0.0.0", port=8000, loop="asyncio")
-    server = uvicorn.Server(config)
-    loop.run_until_complete(server.serve())
+    photo = "https://i.ibb.co/fd2zyZ0D/1a3411a4-db55-46b3-84a8-f4da1b57aeff.png"
+    caption = "👋 <b>Хуш келибсан!</b>\n\nБу ерда сен 1WIN учун ишончли сигналлар оласан.\n"
+
+    if user and user[1] in ["registration", "deposit"]:
+        caption += "✅ Сен рўйхатдан ўтгансан. Энди депозит кирит ва сигналлар фаоллашади. 💰"
+    else:
+        caption += "📝 Илтимос, рўйхатдан ўтиш учун тугмани бос ва янги аккаунт ярат."
+
+    await message.answer_photo(
+        photo=photo,
+        caption=caption,
+        reply_markup=get_main_menu(),
+        parse_mode="HTML"
+    )
 
 if __name__ == "__main__":
     start()
