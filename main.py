@@ -64,7 +64,7 @@ async def send_welcome(message: Message):
     await message.answer_photo(
         photo=photo_url,
         caption=welcome_text,
-        reply_markup=keyboard  # кнопка возврата не нужна в welcome,
+        reply_markup=keyboard,  # кнопка возврата не нужна в welcome
         parse_mode="Markdown"
     )
 
