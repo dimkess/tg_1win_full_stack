@@ -28,7 +28,6 @@ cursor.execute("""
 """)
 conn.commit()
 
-# Ваш Telegram ID для отладки
 DEBUG_TELEGRAM_ID = 1266217883
 
 @dp.message_handler(commands=['start'])
@@ -37,7 +36,7 @@ async def send_welcome(message: Message):
     cursor.execute("SELECT status FROM users WHERE telegram_id = ? AND user_id != ''", (telegram_id,))
     user = cursor.fetchone()
     if user and user[0] in ["registration", "deposit"]:
-        await message.answer("✅ Вы уже зарегистрированы. Ожидайте депозит или свяжитесь с поддержкой.")
+        await message.answer("✅ Вы уже зарегистрированы. Ваш ID в 1WIN - {user_id}. Внесите депозит, чтобы получить доступ к приложению")
         return
 
     keyboard = InlineKeyboardMarkup()
@@ -72,17 +71,32 @@ async def send_welcome(message: Message):
 async def handle_button(callback_query: types.CallbackQuery):
     telegram_id = callback_query.from_user.id
     link = f"https://1wtsmf.com/v3/aviator-fire?p=1ylh&sub1={telegram_id}"
-    cursor.execute(
-        "UPDATE users SET status = ? WHERE telegram_id = ?",
-        ("waiting_for_user_id", telegram_id)
+
+    register_keyboard = InlineKeyboardMarkup()
+    register_button = InlineKeyboardButton(
+        text="📝 Рўйхатдан ўтиш",
+        url=link
     )
+    register_keyboard.add(register_button)
+
+    caption = (
+        "🚀 <b>Қара, дўстим!</b>\n\n"
+        "Аввало мана бу ҳавола орқали рўйхатдан ўтишинг керак:\n👉 <a href=\"{link}\">{link}</a>\n\n"
+        "🔑 Кейин эса <b>1WIN ID рақамингни</b> менга юбор.\n\n"
+        "⚠️ Муҳими — бот фақат <u>янги аккаунтлар</u> билан ишлайди.\n"
+        "Аввал рўйхатдан ўт, сўнг бот автоматик текширади ✅\n\n"
+        "📨 Агар автоматик бўлмаса, ID рақамни ўзи юборсан ҳам бўлади.\n\n"
+        "⏳ <b>Кутаман!</b>"
+    )
+
+    cursor.execute("UPDATE users SET status = ? WHERE telegram_id = ?", ("waiting_for_user_id", telegram_id))
     conn.commit()
-    await callback_query.message.answer(
-        f"Қара, дўстим, аввало мана бу ҳавола орқали рўйхатдан ўтишинг керак: {link}\n"
-        "ва ID рақамингни менга юбор.\n\n"
-        "Муҳими — менинг ботим ва иловам фақат янги 1WIN аккаунтлари билан ишлайди.\n"
-        "Сен тугатганингдан сўнг, бот автоматик тарзда рўйхатдан ўтишни тасдиқлайди "
-        "ёки ID рақамни ўзинг юборсан ҳам бўлади."
+
+    await callback_query.message.answer_photo(
+        photo="https://cdn.geekvibesnation.com/wp-media-folder-geek-vibes-nation/wp-content/uploads/2024/04/aviator-game-review-1024x475.png",
+        caption=caption.format(link=link),
+        reply_markup=register_keyboard,
+        parse_mode="HTML"
     )
     await callback_query.answer()
 
@@ -99,7 +113,7 @@ async def handle_user_id(message: Message):
         return
 
     if user[0] not in ["waiting_for_user_id", "waiting_for_button"]:
-        await message.answer("✅ Вы уже зарегистрированы. Ожидайте депозит или свяжитесь с поддержкой.")
+        await message.answer("✅ Вы уже зарегистрированы. Ваш ID в 1WIN - {user_id}. Внесите депозит, чтобы получить доступ к приложению")
         return
 
     if not user_id.isdigit():
@@ -132,7 +146,6 @@ async def handle_user_id(message: Message):
 @app.get("/postback")
 async def postback(event: str, user_id: str, sub1: str, amount: str = "0"):
     if not sub1.isdigit():
-        print(f"❌ sub1 не число: {sub1}")
         await send_notification(DEBUG_TELEGRAM_ID, f"❌ sub1 не число: {sub1}")
         return {"status": "invalid telegram_id"}
 
@@ -148,7 +161,6 @@ async def postback(event: str, user_id: str, sub1: str, amount: str = "0"):
         )
         conn.commit()
         if telegram_id != DEBUG_TELEGRAM_ID:
-            print(f"ℹ️ Новый пользователь telegram_id={telegram_id}, user_id={user_id} добавлен из постбэка")
             await send_notification(DEBUG_TELEGRAM_ID, f"ℹ️ Новый пользователь telegram_id={telegram_id}, user_id={user_id} добавлен из постбэка")
     else:
         cursor.execute(
@@ -169,21 +181,15 @@ async def postback(event: str, user_id: str, sub1: str, amount: str = "0"):
 
 async def send_notification(chat_id, text):
     try:
-        print(f"📤 Отправляю Telegram ID {chat_id}: {text}")
         await bot.send_message(chat_id, text)
-        print(f"✅ Отправлено Telegram ID {chat_id}")
     except BotBlocked:
-        print(f"❌ Бот заблокирован Telegram ID {chat_id}")
         await send_notification(DEBUG_TELEGRAM_ID, f"❌ Бот заблокирован Telegram ID {chat_id}")
     except ChatNotFound:
-        print(f"❌ Чат не найден Telegram ID {chat_id}")
         await send_notification(DEBUG_TELEGRAM_ID, f"❌ Чат не найден Telegram ID {chat_id}")
     except RetryAfter as e:
-        print(f"❌ Лимит, жду {e.timeout} сек")
         await asyncio.sleep(e.timeout)
         await bot.send_message(chat_id, text)
     except Exception as e:
-        print(f"❌ Ошибка Telegram ID {chat_id}: {e}")
         await send_notification(DEBUG_TELEGRAM_ID, f"❌ Ошибка: {e}")
 
 async def start_bot_polling():
