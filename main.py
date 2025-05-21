@@ -133,12 +133,14 @@ async def handle_user_id(message: Message):
     existing_user = cursor.fetchone()
 
     if existing_user:
-        if existing_user[0] in ["registration", "deposit"]:
-            await message.answer(f"✅ ID {user_id} уже зарегистрирован. Статус: {existing_user[0]}.")
-            return
-        else:
-            await message.answer("⏳ ID уже отправлен. Жду регистрации или депозита.")
-            return
+        status = existing_user[0]
+        if status == "id_sent":
+                await message.answer("⏳ ID уже отправлен. Жду регистрации или депозита.")
+                return
+        elif status in ["registration", "deposit"]:
+                await message.answer(f"✅ Вы уже зарегистрированы. Ваш ID в 1WIN — {user_id}. Внесите депозит, чтобы получить доступ к приложению.")
+                return
+
 
     cursor.execute(
         "UPDATE users SET user_id = ?, status = ? WHERE telegram_id = ? AND user_id = ''",
