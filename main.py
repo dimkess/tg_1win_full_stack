@@ -142,16 +142,23 @@ async def handle_user_id(message: Message):
                 return
 
 
+    # Пытаемся обновить существующую "пустую" запись
     cursor.execute(
         "UPDATE users SET user_id = ?, status = ? WHERE telegram_id = ? AND user_id = ''",
         (user_id, "id_sent", telegram_id)
     )
+
+    # Если ничего не обновилось — проверяем, есть ли уже такая связка
     if cursor.rowcount == 0:
-        cursor.execute(
+        cursor.execute("SELECT 1 FROM users WHERE telegram_id = ? AND user_id = ?", (telegram_id, user_id))
+        if not cursor.fetchone():
+           cursor.execute(
             "INSERT INTO users (telegram_id, user_id, status) VALUES (?, ?, ?)",
             (telegram_id, user_id, "id_sent")
         )
-    conn.commit()
+
+conn.commit()
+
 
 
     text = (
