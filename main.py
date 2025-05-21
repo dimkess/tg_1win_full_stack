@@ -1,7 +1,7 @@
 import asyncio
 import sqlite3
 from fastapi import FastAPI
-from aiogram import Bot, Dispatcher, types
+from aiogram import Bot, Dispatcher, executor, types
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils.exceptions import BotBlocked, ChatNotFound, RetryAfter
 from dotenv import load_dotenv
