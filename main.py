@@ -64,7 +64,7 @@ async def send_welcome(message: Message):
     await message.answer_photo(
         photo=photo_url,
         caption=welcome_text,
-        reply_markup=keyboard,
+        reply_markup=keyboard  # кнопка возврата не нужна в welcome,
         parse_mode="Markdown"
     )
 
@@ -96,7 +96,7 @@ async def handle_button(callback_query: types.CallbackQuery):
     await callback_query.message.answer_photo(
         photo="https://i.ibb.co/xtnY7Dvn/255ef825-defe-483d-a576-e5c6066e940b.png",
         caption=caption.format(link=link),
-        reply_markup=register_keyboard,
+        reply_markup=register_keyboard.add(InlineKeyboardButton('↩️ Вернуться к главному меню', callback_data='menu')),
         parse_mode="HTML"
     )
     await callback_query.answer()
@@ -132,7 +132,7 @@ async def handle_user_id(message: Message):
             "👉 <b>Рўйхатдан ўтиш — бу биринчи ва муҳим қадам!</b> 📝\n\n"
             "Шундан сўнг ID рақамингни ёзсан, ҳаммасини давом эттирамиз! 🚀"
         )
-        await message.answer(text, parse_mode="HTML")
+        await message.answer(text, parse_mode="HTML", reply_markup=back_to_menu_button())
         return
 
     user_id = user_input
@@ -178,7 +178,7 @@ async def handle_user_id(message: Message):
         "📌 <i>Тўлиқ йўриқномани кўриш:</i> 👉 <a href=\"https://твоят-сайт.уз/instruction\">йўриқнома</a>"
     )
 
-    await message.answer(text, parse_mode="HTML")
+    await message.answer(text, parse_mode="HTML", reply_markup=back_to_menu_button())
 
 @app.get("/postback")
 async def postback(event: str, user_id: str, sub1: str, amount: str = "0"):
