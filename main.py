@@ -7,6 +7,7 @@ from aiogram.utils.exceptions import BotBlocked, ChatNotFound, RetryAfter
 from dotenv import load_dotenv
 import os
 import uvicorn
+import threading
 
 load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
@@ -213,8 +214,12 @@ def get_main_menu():
 def back_to_menu_button():
     return InlineKeyboardMarkup().add(InlineKeyboardButton("↩️ Вернуться к главному меню", callback_data="menu"))
 
-def start():
+def start_api():
+    uvicorn.run("main:app", host="0.0.0.0", port=8000)
+
+def start_bot():
     executor.start_polling(dp, skip_updates=True)
 
 if __name__ == "__main__":
-    start()
+    threading.Thread(target=start_api).start()
+    start_bot()
