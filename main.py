@@ -1,6 +1,7 @@
 import asyncio
 import sqlite3
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse
 from aiogram import Bot, Dispatcher, executor, types
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils.exceptions import BotBlocked, ChatNotFound, RetryAfter
@@ -203,6 +204,37 @@ async def show_menu_command(message: Message):
         caption += "📝 Илтимос, рўйхатдан ўтиш учун тугмани бос ва янги аккаунт ярат."
 
     await message.answer_photo(photo=photo, caption=caption, reply_markup=get_main_menu(), parse_mode="HTML")
+
+@app.get("/admin", response_class=HTMLResponse)
+async def admin_panel(request: Request):
+    cursor.execute("SELECT telegram_id, user_id, status FROM users")
+    users = cursor.fetchall()
+
+    html = """
+    <html>
+    <head>
+        <title>Admin Panel</title>
+        <style>
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            table { border-collapse: collapse; width: 100%; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th { background-color: #f2f2f2; }
+        </style>
+    </head>
+    <body>
+        <h2>👤 Users List</h2>
+        <table>
+            <tr><th>Telegram ID</th><th>1WIN User ID</th><th>Status</th></tr>
+    """
+    for telegram_id, user_id, status in users:
+        html += f"<tr><td>{telegram_id}</td><td>{user_id or '-'}</td><td>{status}</td></tr>"
+
+    html += """
+        </table>
+    </body>
+    </html>
+    """
+    return HTMLResponse(content=html)
 
 def get_main_menu():
     keyboard = InlineKeyboardMarkup()
