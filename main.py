@@ -6,6 +6,7 @@ from aiogram import Bot, Dispatcher, executor, types
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils.exceptions import BotBlocked, ChatNotFound, RetryAfter
 from dotenv import load_dotenv
+from datetime import datetime
 import os
 import uvicorn
 import threading
@@ -55,9 +56,10 @@ async def send_welcome(message: Message):
     )
 
     photo_url = "https://i.ibb.co/fd2zyZ0D/1a3411a4-db55-46b3-84a8-f4da1b57aeff.png"
-    cursor.execute("INSERT OR IGNORE INTO users (telegram_id, user_id, status) VALUES (?, ?, ?)",
-                   (telegram_id, '', 'waiting_for_button'))
-    conn.commit()
+    cursor.execute(
+        "INSERT OR IGNORE INTO users (telegram_id, user_id, status, created_at) VALUES (?, ?, ?, ?)",
+        (telegram_id, "", "waiting_for_button", datetime.utcnow().isoformat())
+    )
 
     await message.answer_photo(photo=photo_url, caption=welcome_text, reply_markup=keyboard, parse_mode="Markdown")
 
@@ -207,7 +209,7 @@ async def show_menu_command(message: Message):
 
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_panel(request: Request):
-    cursor.execute("SELECT telegram_id, user_id, status FROM users")
+    cursor.execute("SELECT telegram_id, user_id, status, created_at FROM users")
     users = cursor.fetchall()
 
     html = """
@@ -224,10 +226,11 @@ async def admin_panel(request: Request):
     <body>
         <h2>👤 Users List</h2>
         <table>
-            <tr><th>Telegram ID</th><th>1WIN User ID</th><th>Status</th></tr>
+            <tr><th>Telegram ID</th><th>1WIN User ID</th><th>Status</th><th>Created At</th></tr>
     """
-    for telegram_id, user_id, status in users:
-        html += f"<tr><td>{telegram_id}</td><td>{user_id or '-'}</td><td>{status}</td></tr>"
+    for telegram_id, user_id, status, created_at in users:
+        html += f"<tr><td>{telegram_id}</td><td>{user_id or '-'}" \
+                f"</td><td>{status}</td><td>{created_at or '-'}</td></tr>"
 
     html += """
         </table>
